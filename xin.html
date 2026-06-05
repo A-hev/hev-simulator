@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>自适应 HEV 能量管理仿真系统 | 浏览器直接运行</title>
+    <!-- Chart.js 轻量图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        header {
+            background: #1e3c72;
+            color: white;
+            padding: 16px 24px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 600;
+        }
+        header p {
+            margin: 6px 0 0;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        .main-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 24px;
+        }
+        .control-panel {
+            flex: 1.2;
+            min-width: 260px;
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .chart-panel {
+            flex: 3;
+            min-width: 500px;
+        }
+        .param-group {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 16px;
+        }
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+        .param-value {
+            font-family: monospace;
+            background: #eef2ff;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .num-input {
+            width: 85px;
+            text-align: center;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 4px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            background: #1d4ed8;
+            transform: scale(0.98);
+        }
+        .metrics {
+            background: #e6f0ff;
+            border-radius: 20px;
+            padding: 12px 16px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .metric-card {
+            background: white;
+            border-radius: 20px;
+            padding: 8px 14px;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .metric-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #1e3c72;
+        }
+        .chart-container {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        canvas {
+            max-height: 220px;
+            width: 100%;
+        }
+        footer {
+            text-align: center;
+            padding: 16px;
+            font-size: 0.75rem;
+            color: #475569;
+            border-top: 1px solid #e2e8f0;
+        }
+        @media (max-width: 800px) {
+            .main-grid { flex-direction: column; }
+            .chart-panel { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>⚡ 自适应 HEV 能量管理仿真系统</h1>
+        <p>纯前端仿真 | 基于物理模型 | 实时调参 | 油耗/SOC 分析</p >
+    </header>
+    <div class="main-grid">
+        <!-- 控制台 -->
+        <div class="control-panel">
+            <div class="param-group">
+                <div class="param-label">
+                    <span>🔁 CS因子（电量维持）</span>
+                    <span id="csFactorVal" class="param-value">0.25</span>
+                </div>
+                <input type="range" id="csFactor" min="0.05" max="0.8" step="0.01" value="0.25">
+                <div class="param-label" style="margin-top:12px;">
+                    <span>⚙️ 发动机最小功率 (kW)</span>
+                    <span id="engMinPowerVal" class="param-value">25</span>
+                </div>
+                <input type="range" id="engMinPower" min="8" max="60" step="1" value="25">
+                <div class="param-label" style="margin-top:12px;">
+                    <span>⚡ EV最高车速 (km/h)</span>
+                    <span id="evSpdLimitVal" class="param-value">50</span>
+                </div>
+                <input type="range" id="evSpdLimit" min="20" max="90" step="2" value="50">
+            </div>
+            <div class="param-group">
+                <div class="param-label">
+                    <span>🚗 整车质量 (kg)</span>
+                    <span id="massVal" class="param-value">1500</span>
+                </div>
+                <input type="range" id="vehicleMass" min="1000" max="2200" step="20" value="1500">
+                <div class="param-label">
+                    <span>🔋 电池容量 (Ah)</span>
+                    <span id="battCapVal" class="param-value">50</span>
+                </div>
+                <input type="range" id="battCap" min="30" max="100" step="2" value="50">
+            </div>
+            <button id="runSimBtn">▶ 运行仿真 & 更新结果</button>
+            <div class="metrics" id="metricsPanel">
+                <div class="metric-card">⛽ 油耗<br><span id="fuelTotal" class="metric-value">-- g</span></div>
+                <div class="metric-card">🔋 最终 SOC<br><span id="finalSOC" class="metric-value">-- %</span></div>
+                <div class="metric-card">📊 等效 MPGe<br><span id="mpge" class="metric-value">--</span></div>
+            </div>
+            <div style="font-size:0.7rem; text-align:center; margin-top:12px;">自适应规则: SOC偏差动态调整CS因子</div>
+        </div>
+           <!-- 图表区 -->
+        <div class="chart-panel">
+            <div class="chart-container">
+                <canvas id="speedChart" width="400" height="180" style="width:100%; height:180px"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="socChart" width="400" height="180" style="width:100%; height:180px"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="fuelChart" width="400" height="180" style="width:100%; height:180px"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="modeChart" width="400" height="150" style="width:100%; height:150px"></canvas>
+            </div>
+        </div>
+    </div>
+    <footer>🎯 基于前向模型 | 简化发动机/电机效率 | 自适应策略 | 浏览器本地计算，无数据上传</footer>
+</div>
+
+<script>
+    (function(){
+        // ---------- DOM 元素绑定 ----------
+        const csFactorSlider = document.getElementById('csFactor');
+        const csFactorVal = document.getElementById('csFactorVal');
+        const engMinPowerSlider = document.getElementById('engMinPower');
+        const engMinPowerVal = document.getElementById('engMinPowerVal');
+        const evSpdLimitSlider = document.getElementById('evSpdLimit');
+        const evSpdLimitVal = document.getElementById('evSpdLimitVal');
+        const massSlider = document.getElementById('vehicleMass');
+        const massVal = document.getElementById('massVal');
+        const battCapSlider = document.getElementById('battCap');
+        const battCapVal = document.getElementById('battCapVal');
+        const runBtn = document.getElementById('runSimBtn');
+        
+        // 指标显示
+        const fuelTotalSpan = document.getElementById('fuelTotal');
+        const finalSOCSpan = document.getElementById('finalSOC');
+        const mpgeSpan = document.getElementById('mpge');
+        
+        // 滑块实时更新数值
+        function updateSliderDisplays() {
+            csFactorVal.innerText = csFactorSlider.value;
+            engMinPowerVal.innerText = engMinPowerSlider.value;
+            evSpdLimitVal.innerText = evSpdLimitSlider.value;
+            massVal.innerText = massSlider.value;
+            battCapVal.innerText = battCapSlider.value;
+        }
+        csFactorSlider.addEventListener('input', updateSliderDisplays);
+        engMinPowerSlider.addEventListener('input', updateSliderDisplays);
+        evSpdLimitSlider.addEventListener('input', updateSliderDisplays);
+        massSlider.addEventListener('input', updateSliderDisplays);
+        battCapSlider.addEventListener('input', updateSliderDisplays);
+        updateSliderDisplays();
+        
+        // ---------- 生成参考驾驶循环 (FTP75 风格，时长 600秒) ----------
+        function generateDriveCycle(tEnd = 600, dt = 0.5) {
+            let t = [];
+            let v = [];
+            for (let time = 0; time <= tEnd + 1e-6; time += dt) {
+                t.push(time);
+                // 模拟城市+高速组合：正弦波 + 阶跃 + 噪声
+                let base = 20 + 18 * Math.sin(2 * Math.PI * time / 130);
+                if (time > 300 && time < 450) base += 15;
+                if (time > 480) base = Math.max(20, base - 8);
+                let noise = (Math.random() - 0.5) * 3;
+                let spd = Math.min(105, Math.max(0, base + noise));
+                v.push(spd);
+            }
+            return {t, v, dt};
+        }
+        
+        // ---------- 车辆仿真核心 ----------
+        function runHEVSimulation(params) {
+            // 参数解析
+            const csFactorNom = params.csFactor;      // 基础 CS因子
+            const minEngPowerKW = params.minEngPower; // kW
+            const evSpdMax = params.evSpdMax;         // km/h
+            const vehicleMass = params.mass;           // kg
+            const batteryCapAh = params.batteryCapAh;  // Ah
+            
+            // 固定车辆参数
+            const g = 9.81;
+            const rollCoeff = 0.01;
+            const cd = 0.3;
+            const area = 2.2;
+            const wheelRadius = 0.3;
+            const rhoAir = 1.225;
+            const batteryVoltage = 300;      // V
+            const initSOC = 0.6;
+            const motorMaxTorque = 150;       // Nm
+            const engineMaxTorque = 200;      // Nm
+            
+            // 油耗简化模型 (g/s)  发动机扭矩Nm, 转速 rad/s
+            function fuelRateEngine(T_nm, omega_rad_s) {
+                if (T_nm <= 0) return 0;
+                // 近似: 0.28 g/s per 10Nm + 基础摩擦
+                return 0.28 * (T_nm / 10) + 0.08 * omega_rad_s;
+            }
+            
+            // 电机效率常数
+            const motorEff = 0.9;
+            
+            // 生成驾驶循环 (固定600s,步长0.5s)
+            const {t, v, dt} = generateDriveCycle(600, 0.5);
+            const N = t.length;
+            
+            // 状态数组
+            let SOC = new Array(N).fill(initSOC);
+            let engTorque = new Array(N).fill(0);
+            let motTorque = new Array(N).fill(0);
+            let mode = new Array(N).fill(0);   // 1:EV, 2:HEV, 3:充电维持
+            let cumFuel = new Array(N).fill(0);
+            let actualCS = new Array(N).fill(csFactorNom);
+            
+            // 辅助函数: 车速km/h -> 轮端扭矩需求 Nm
+            function torqueDemandFromSpeed(v_kph) {
+                let v_ms = v_kph / 3.6;
+                let F_roll = vehicleMass * g * rollCoeff;
+                let F_aero = 0.5 * rhoAir * cd * area * v_ms * v_ms;
+                let F_total = F_roll + F_aero;  // 忽略加速阻力(简化稳态)
+                let T_wheel = F_total * wheelRadius;
+                // 最大牵引力限制 (避免不合理大扭矩)
+                return Math.min(350, Math.max(-80, T_wheel));
+            }
+            
+            let prevFuel = 0;
+            for (let i = 0; i < N-1; i++) {
+                let v_kph = v[i];
+                let T_demand = torqueDemandFromSpeed(v_kph);
+                let omega_wheel = (v_kph / 3.6) / wheelRadius; // rad/s
+                
+                // 自适应CS因子: 根据SOC偏差调整
+                let socError = 0.6 - SOC[i];
+                let csDynamic = csFactorNom + 0.05 * socError;
+                csDynamic = Math.min(0.8, Math.max(0.08, csDynamic));
+                actualCS[i] = csDynamic;
+                
+                let T_eng = 0, T_mot = 0, fuel_rate = 0, I_batt = 0;
+                let modeCode = 1; // default EV
+                
+                // 策略逻辑
+                if (SOC[i] > 0.68 && v_kph < evSpdMax) {
+                    // EV模式
+                    modeCode = 1;
+                    T_eng = 0;
+                    T_mot = T_demand;
+                    if (T_mot > motorMaxTorque) T_mot = motorMaxTorque;
+                    if (T_mot < -motorMaxTorque) T_mot = -motorMaxTorque;
+                    fuel_rate = 0;
+                    let P_batt = (T_mot * omega_wheel) / motorEff;
+                    I_batt = P_batt / batteryVoltage;
+                } 
+                else if (T_demand > (minEngPowerKW * 1000 / (omega_wheel+0.5)) && SOC[i] > 0.28) {
+                    // HEV 混合模式: 发动机提供基础扭矩，电机补充
+                    modeCode = 2;
+                    let baseTorque = Math.min(engineMaxTorque, Math.max(10, T_demand - 25));
+                    T_eng = Math.min(engineMaxTorque, baseTorque);
+                    T_mot = T_demand - T_eng;
+                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
+                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
+                    let P_batt = (T_mot * omega_wheel) / motorEff;
+                    I_batt = P_batt / batteryVoltage;
+                } 
+                else {
+                    // 电量维持模式 (CS)
+                    modeCode = 3;
+                    let extra = csDynamic * 28;
+                    T_eng = Math.min(engineMaxTorque, Math.max(10, T_demand + extra));
+                    T_mot = T_demand - T_eng;
+                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
+                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
+                    let P_batt = (T_mot * omega_wheel) / motorEff;
+                    I_batt = P_batt / batteryVoltage;
+                }
+                    // 电池SOC更新 (简化库伦计数)
+                let deltaSOC = -I_batt * dt / (batteryCapAh * 3600);
+                let nextSOC = SOC[i] + deltaSOC;
+                nextSOC = Math.min(0.95, Math.max(0.2, nextSOC));
+                SOC[i+1] = nextSOC;
+                engTorque[i] = T_eng;
+                motTorque[i] = T_mot;
+                mode[i] = modeCode;
+                let fuelInc = fuel_rate * dt;
+                cumFuel[i+1] = cumFuel[i] + fuelInc;
+            }
+            // 补齐最后一点
+            mode[N-1] = mode[N-2];
+            engTorque[N-1] = engTorque[N-2];
+            motTorque[N-1] = motTorque[N-2];
+            actualCS[N-1] = actualCS[N-2];
+            
+            const totalFuel_g = cumFuel[N-1];
+            const finalSOCval = SOC[N-1];
+            // 近似 MPGe 示意: 油耗(克) -> 等效英里/加仑汽油能量 (粗略)
+            // 1加仑汽油 ≈ 2740克, 能量约33.7 kWh, 这里仅作相对指标
+            let mpgeEstimate = (1000 / (totalFuel_g+0.01)) * 28;
+            mpgeEstimate = Math.min(120, Math.max(10, mpgeEstimate));
+            
+            return {
+                time: t,
+                speed: v,
+                SOC: SOC,
+                cumFuel_g: cumFuel,
+                mode: mode,
+                totalFuel_g: totalFuel_g,
+                finalSOC: finalSOCval,
+                mpge: mpgeEstimate,
+                actualCS: actualCS
+            };
+        }
+        
+        // ---------- 图表全局变量 ----------
+        let chartSpeed, chartSOC, chartFuel, chartMode;
+        
+        function initCharts() {
+            const ctxSpeed = document.getElementById('speedChart').getContext('2d');
+            const ctxSOC = document.getElementById('socChart').getContext('2d');
+            const ctxFuel = document.getElementById('fuelChart').getContext('2d');
+            const ctxMode = document.getElementById('modeChart').getContext('2d');
+            
+            chartSpeed = new Chart(ctxSpeed, {
+                type: 'line', data: { labels: [], datasets: [{ label: '车速 (km/h)', borderColor: '#2563eb', data: [] }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+            });
+            chartSOC = new Chart(ctxSOC, {
+                type: 'line', data: { labels: [], datasets: [{ label: '电池 SOC', borderColor: '#16a34a', data: [] }] },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+            chartFuel = new Chart(ctxFuel, {
+                type: 'line', data: { labels: [], datasets: [{ label: '累计油耗 (g)', borderColor: '#dc2626', data: [] }] },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+            chartMode = new Chart(ctxMode, {
+                type: 'line', data: { labels: [], datasets: [{ label: '工作模式 (1=EV,2=HEV,3=CS)', borderColor: '#f97316', data: [] }] },
+                options: { responsive: true, maintainAspectRatio: true, y: { min: 0.8, max: 3.2, ticks: { stepSize: 1 } } }
+            });
+        }
+        
+        function updateCharts(result) {
+            const times = result.time;
+            // 下采样避免点太多导致卡顿 (但总共约1200点，可以)
+            chartSpeed.data.labels = times.map(t => t.toFixed(1));
+            chartSpeed.data.datasets[0].data = result.speed;
+            chartSpeed.update();
+            
+            chartSOC.data.labels = times.map(t => t.toFixed(1));
+            chartSOC.data.datasets[0].data = result.SOC;
+            chartSOC.update();
+            
+            chartFuel.data.labels = times.map(t => t.toFixed(1));
+            chartFuel.data.datasets[0].data = result.cumFuel_g;
+            chartFuel.update();
+            
+            chartMode.data.labels = times.map(t => t.toFixed(1));
+            chartMode.data.datasets[0].data = result.mode;
+            chartMode.update();
+            
+            // 更新指标卡片
+            fuelTotalSpan.innerText = result.totalFuel_g.toFixed(1) + ' g';
+            finalSOCSpan.innerText = (result.finalSOC * 100).toFixed(1) + ' %';
+            mpgeSpan.innerText = result.mpge.toFixed(1);
+        }
+        
+        // 主运行函数
+        function runSimulation() {
+            const params = {
+                csFactor: parseFloat(csFactorSlider.value),
+                minEngPower: parseFloat(engMinPowerSlider.value),
+                evSpdMax: parseFloat(evSpdLimitSlider.value),
+                mass: parseFloat(massSlider.value),
+                batteryCapAh: parseFloat(battCapSlider.value)
+            };
+            // 添加loading状态简单反馈
+            runBtn.innerText = '⏳ 仿真计算中...';
+            runBtn.disabled = true;
+            setTimeout(() => {
+                try {
+                    const result = runHEVSimulation(params);
+                    updateCharts(result);
+                } catch(e) { console.error(e); alert('仿真出错，请刷新重试'); }
+                runBtn.innerText = '▶ 运行仿真 & 更新结果';
+                runBtn.disabled = false;
+            }, 20);
+        }
+        
+        window.onload = () => {
+            initCharts();
+            // 默认跑一次初始结果
+            runSimulation();
+            runBtn.addEventListener('click', runSimulation);
+        };
+    })();
+</script>
+</body>
+</html>
