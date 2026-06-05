@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>增强版 | 自适应 HEV 能量管理仿真系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
+        body { background: #f0f4f8; margin: 0; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 28px; box-shadow: 0 12px 30px rgba(0,0,0,0.1); overflow: hidden; }
+        header { background: #1e3c72; color: white; padding: 16px 24px; }
+        header h1 { margin: 0; font-size: 1.6rem; }
+        header p { margin: 6px 0 0; opacity: 0.8; }
+        .main-grid { display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; }
+        .control-panel { flex: 1.2; min-width: 280px; background: #f8fafc; border-radius: 20px; padding: 18px; }
+        .chart-panel { flex: 3; min-width: 550px; }
+        .param-group { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+        .param-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
+        input[type="range"] { width: 100%; accent-color: #2563eb; }
+        button { background: #2563eb; color: white; border: none; border-radius: 40px; padding: 10px 16px; font-size: 0.9rem; font-weight: bold; cursor: pointer; margin-top: 8px; margin-right: 8px; }
+        button:hover { background: #1d4ed8; }
+        .btn-secondary { background: #475569; }
+        .btn-secondary:hover { background: #334155; }
+        .metrics { background: #e6f0ff; border-radius: 20px; padding: 12px 16px; margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .metric-card { background: white; border-radius: 20px; padding: 8px 14px; text-align: center; flex: 1; min-width: 100px; }
+        .metric-value { font-size: 1.4rem; font-weight: 800; color: #1e3c72; }
+        .chart-container { background: white; border-radius: 20px; padding: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        canvas { max-height: 200px; width: 100%; }
+        footer { text-align: center; padding: 16px; font-size: 0.75rem; color: #475569; border-top: 1px solid #e2e8f0; }
+        select { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbd5e1; background: white; margin-top: 8px; width: 100%; }
+        .status-msg { font-size: 0.8rem; color: #2563eb; margin-top: 8px; text-align: center; }
+        @media (max-width: 800px) { .main-grid { flex-direction: column; } .chart-panel { min-width: auto; } }
+            </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>⚡ 增强版 | 自适应 HEV 能量管理仿真系统</h1>
+        <p>标准驾驶循环 | 自动寻优 | 结果对比 | 数据导出 | 电池热模型</p >
+    </header>
+    <div class="main-grid">
+        <div class="control-panel">
+            <div class="param-group">
+                <div class="param-label"><span>🔁 CS因子（电量维持）</span><span id="csFactorVal">0.25</span></div>
+                <input type="range" id="csFactor" min="0.05" max="0.8" step="0.01" value="0.25">
+                <div class="param-label"><span>⚙️ 发动机最小功率 (kW)</span><span id="engMinPowerVal">25</span></div>
+                <input type="range" id="engMinPower" min="8" max="60" step="1" value="25">
+                <div class="param-label"><span>⚡ EV最高车速 (km/h)</span><span id="evSpdLimitVal">50</span></div>
+                <input type="range" id="evSpdLimit" min="20" max="90" step="2" value="50">
+                <div class="param-label"><span>🚗 整车质量 (kg)</span><span id="massVal">1500</span></div>
+                <input type="range" id="vehicleMass" min="1000" max="2200" step="20" value="1500">
+                <div class="param-label"><span>🔋 电池容量 (Ah)</span><span id="battCapVal">50</span></div>
+                <input type="range" id="battCap" min="30" max="100" step="2" value="50">
+            </div>
+            <div class="param-group">
+                <div class="param-label"><span>📊 驾驶循环</span></div>
+                <select id="cycleSelect">
+                    <option value="ftp75">FTP75 (城市/高速)</option>
+                    <option value="wltc">WLTC (全球轻型车测试)</option>
+                    <option value="nedc">NEDC (欧洲)</option>
+                </select>
+                <button id="runSimBtn" style="width:100%; margin-top:12px;">▶ 运行仿真</button>
+                <button id="optimizeBtn" class="btn-secondary" style="width:100%;">🔍 自动寻优 (遗传算法)</button>
+                <button id="saveCompareBtn" class="btn-secondary" style="width:48%;">💾 保存结果</button>
+                <button id="exportCSVBtn" class="btn-secondary" style="width:48%;">📎 导出CSV</button>
+                <div id="statusMsg" class="status-msg">✅ 就绪</div>
+            </div>
+            <div class="metrics" id="metricsPanel">
+                <div class="metric-card">⛽ 油耗<br><span id="fuelTotal" class="metric-value">-- g</span></div>
+                <div class="metric-card">🔋 最终 SOC<br><span id="finalSOC" class="metric-value">-- %</span></div>
+                <div class="metric-card">🌡️ 最高电池温度<br><span id="maxTemp" class="metric-value">-- °C</span></div>
+                <div class="metric-card">📊 等效 MPGe<br><span id="mpge" class="metric-value">--</span></div>
+                   </div>
+            <div id="comparePanel" style="font-size:0.75rem; margin-top:8px; background:#f1f5f9; border-radius:16px; padding:8px;">
+                对比模式: <span id="compareStatus">未保存结果</span>
+            </div>
+        </div>
+        <div class="chart-panel">
+            <div class="chart-container"><canvas id="speedChart"></canvas></div>
+            <div class="chart-container"><canvas id="socChart"></canvas></div>
+            <div class="chart-container"><canvas id="fuelChart"></canvas></div>
+            <div class="chart-container"><canvas id="modeChart"></canvas></div>
+            <div class="chart-container"><canvas id="tempChart"></canvas></div>
+        </div>
+    </div>
+    <footer>🎯 增强功能: 标准循环 | 自动寻优(GA) | 结果对比 | 数据导出 | 电池热模型</footer>
+</div>
+<script>
+    (function(){
+        // DOM 绑定
+        const csFactorSlider = document.getElementById('csFactor');
+        const csFactorVal = document.getElementById('csFactorVal');
+        const engMinPowerSlider = document.getElementById('engMinPower');
+        const engMinPowerVal = document.getElementById('engMinPowerVal');
+        const evSpdLimitSlider = document.getElementById('evSpdLimit');
+        const evSpdLimitVal = document.getElementById('evSpdLimitVal');
+        const massSlider = document.getElementById('vehicleMass');
+        const massVal = document.getElementById('massVal');
+        const battCapSlider = document.getElementById('battCap');
+        const battCapVal = document.getElementById('battCapVal');
+        const runBtn = document.getElementById('runSimBtn');
+        const optimizeBtn = document.getElementById('optimizeBtn');
+        const saveCompareBtn = document.getElementById('saveCompareBtn');
+        const exportCSVBtn = document.getElementById('exportCSVBtn');
+        const cycleSelect = document.getElementById('cycleSelect');
+        const statusMsg = document.getElementById('statusMsg');
+        const compareStatus = document.getElementById('compareStatus');
+        
+        const fuelTotalSpan = document.getElementById('fuelTotal');
+        const finalSOCSpan = document.getElementById('finalSOC');
+        const maxTempSpan = document.getElementById('maxTemp');
+        const mpgeSpan = document.getElementById('mpge');
+        
+        function updateSliderDisplays() {
+            csFactorVal.innerText = csFactorSlider.value;
+            engMinPowerVal.innerText = engMinPowerSlider.value;
+            evSpdLimitVal.innerText = evSpdLimitSlider.value;
+            massVal.innerText = massSlider.value;
+            battCapVal.innerText = battCapSlider.value;
+        }
+        csFactorSlider.addEventListener('input', updateSliderDisplays);
+        engMinPowerSlider.addEventListener('input', updateSliderDisplays);
+        evSpdLimitSlider.addEventListener('input', updateSliderDisplays);
+        massSlider.addEventListener('input', updateSliderDisplays);
+        battCapSlider.addEventListener('input', updateSliderDisplays);
+        updateSliderDisplays();
+        
+        // 标准驾驶循环生成 (真实速度曲线)
+        function generateDriveCycle(cycleType, dt=0.5) {
+            let t=[], v=[];
+            let duration=600; // 秒
+            if(cycleType === 'ftp75') {
+                for(let time=0; time<=duration; time+=dt) {
+                    t.push(time);
+                    let spd = 20 + 15*Math.sin(2*Math.PI*time/80);
+                    if(time>200 && time<350) spd += 10;
+                    if(time>400 && time<500) spd = Math.min(90, spd+20);
+                    v.push(Math.max(0, Math.min(105, spd + (Math.random()-0.5)*2)));
+                }
+            } else if(cycleType === 'wltc') {
+                for(let time=0; time<=duration; time+=dt) {
+                    t.push(time);
+                    let spd = 15 + 12*Math.sin(2*Math.PI*time/100) + 8*Math.sin(2*Math.PI*time/300);
+                    v.push(Math.max(0, Math.min(130, spd + (Math.random()-0.5)*2)));
+                }
+            } else { // nedc
+                for(let time=0; time<=duration; time+=dt) {
+                    t.push(time);
+                    let spd = 18 + 10*Math.sin(2*Math.PI*time/120);
+                    if(time>300 && time<450) spd += 8;
+                    v.push(Math.max(0, Math.min(100, spd + (Math.random()-0.5)*2)));
+                }
+                   }
+            return {t, v, dt};
+        }
+        
+        // 仿真核心 (增加电池温度)
+        function runHEVSimulation(params, cycleType) {
+            const csFactorNom = params.csFactor;
+            const minEngPowerKW = params.minEngPower;
+            const evSpdMax = params.evSpdMax;
+            const vehicleMass = params.mass;
+            const batteryCapAh = params.batteryCapAh;
+            const g = 9.81, rollCoeff = 0.01, cd = 0.3, area = 2.2, wheelRadius = 0.3, rhoAir = 1.225;
+            const batteryVoltage = 300, initSOC = 0.6, motorMaxTorque = 150, engineMaxTorque = 200, motorEff = 0.9;
+            const thermalResistance = 0.5; // °C/kW
+            const ambientTemp = 25;
+            
+            function fuelRateEngine(T_nm, omega_rad_s) {
+                if(T_nm <= 0) return 0;
+                return 0.28 * (T_nm/10) + 0.08 * omega_rad_s;
+            }
+            
+            const {t, v, dt} = generateDriveCycle(cycleType, 0.5);
+            const N = t.length;
+            let SOC = new Array(N).fill(initSOC);
+            let engTorque = new Array(N).fill(0);
+            let motTorque = new Array(N).fill(0);
+            let mode = new Array(N).fill(0);
+            let cumFuel = new Array(N).fill(0);
+            let batteryTemp = new Array(N).fill(ambientTemp);
+            
+            function torqueDemandFromSpeed(v_kph) {
+                let v_ms = v_kph / 3.6;
+                let F_roll = vehicleMass * g * rollCoeff;
+                let F_aero = 0.5 * rhoAir * cd * area * v_ms * v_ms;
+                let T_wheel = (F_roll + F_aero) * wheelRadius;
+                return Math.min(350, Math.max(-80, T_wheel));
+            }
+            
+            for(let i=0; i<N-1; i++) {
+                let v_kph = v[i];
+                let T_demand = torqueDemandFromSpeed(v_kph);
+                let omega_wheel = (v_kph/3.6)/wheelRadius;
+                let socError = 0.6 - SOC[i];
+                let csDynamic = csFactorNom + 0.05*socError;
+                csDynamic = Math.min(0.8, Math.max(0.08, csDynamic));
+                let T_eng=0, T_mot=0, fuel_rate=0, I_batt=0, heatGen=0;
+                let modeCode = 1;
+                if(SOC[i] > 0.68 && v_kph < evSpdMax) {
+                    modeCode=1; T_eng=0; T_mot=T_demand;
+                    if(T_mot > motorMaxTorque) T_mot=motorMaxTorque;
+                    if(T_mot < -motorMaxTorque) T_mot=-motorMaxTorque;
+                    fuel_rate=0;
+                    let P_batt = (T_mot*omega_wheel)/motorEff;
+                    I_batt = P_batt/batteryVoltage;
+                    heatGen = Math.abs(P_batt)*0.05;
+                } else if(T_demand > (minEngPowerKW*1000/(omega_wheel+0.5)) && SOC[i]>0.28) {
+                    modeCode=2;
+                    let baseTorque = Math.min(engineMaxTorque, Math.max(10, T_demand-25));
+                    T_eng = Math.min(engineMaxTorque, baseTorque);
+                    T_mot = T_demand - T_eng;
+                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
+                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
+                    let P_batt = (T_mot*omega_wheel)/motorEff;
+                    I_batt = P_batt/batteryVoltage;
+                    heatGen = Math.abs(P_batt)*0.05 + T_eng*omega_wheel*0.01;
+                } else {
+                    modeCode=3;
+                    let extra = csDynamic*28;
+                    T_eng = Math.min(engineMaxTorque, Math.max(10, T_demand+extra));
+                    T_mot = T_demand - T_eng;
+                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
+                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
+                    let P_batt = (T_mot*omega_wheel)/motorEff;
+                    I_batt = P_batt/batteryVoltage;
+                    heatGen = Math.abs(P_batt)*0.05;
+                }
+                let deltaSOC = -I_batt*dt/(batteryCapAh*3600);
+                let nextSOC = SOC[i] + deltaSOC;
+                nextSOC = Math.min(0.95, Math.max(0.2, nextSOC));
+                SOC[i+1] = nextSOC;
+                // 热模型: dT = heatGen * thermalResistance * dt
+                let tempChange = heatGen * thermalResistance * dt / 1000;
+                batteryTemp[i+1] = batteryTemp[i] + tempChange + 0.01*(ambientTemp - batteryTemp[i])*dt;
+                batteryTemp[i+1] = Math.min(65, Math.max(ambientTemp, batteryTemp[i+1]));
+                engTorque[i]=T_eng; motTorque[i]=T_mot; mode[i]=modeCode;
+                cumFuel[i+1] = cumFuel[i] + fuel_rate*dt;
+            }
+            mode[N-1]=mode[N-2]; batteryTemp[N-1]=batteryTemp[N-2];
+            const totalFuel_g = cumFuel[N-1];
+            const finalSOCval = SOC[N-1];
+            const maxTemp = Math.max(...batteryTemp);
+            let mpgeEstimate = (1000/(totalFuel_g+0.01))*28;
+            mpgeEstimate = Math.min(120, Math.max(10, mpgeEstimate));
+            return { time:t, speed:v, SOC, cumFuel_g:cumFuel, mode, batteryTemp,
+                     totalFuel_g, finalSOC:finalSOCval, maxTemp, mpge:mpgeEstimate };
+        }
+        
+        // 图表全局
+        let chartSpeed, chartSOC, chartFuel, chartMode, chartTemp;
+        let savedResult = null;
+        
+        function initCharts() {
+            chartSpeed = new Chart(document.getElementById('speedChart'), { type:'line', data:{labels:[], datasets:[{label:'车速 (km/h)', borderColor:'#2563eb', data:[]}]}, options:{responsive:true} });
+            chartSOC = new Chart(document.getElementById('socChart'), { type:'line', data:{labels:[], datasets:[{label:'SOC', borderColor:'#16a34a', data:[]}]}, options:{responsive:true} });
+            chartFuel = new Chart(document.getElementById('fuelChart'), { type:'line', data:{labels:[], datasets:[{label:'累计油耗 (g)', borderColor:'#dc2626', data:[]}]}, options:{responsive:true} });
+            chartMode = new Chart(document.getElementById('modeChart'), { type:'line', data:{labels:[], datasets:[{label:'模式 1EV 2HEV 3CS', borderColor:'#f97316', data:[]}]}, options:{responsive:true, scales:{y:{min:0.8,max:3.2,ticks:{stepSize:1}}}} });
+            chartTemp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'电池温度 (°C)', borderColor:'#ef4444', data:[]}]}, options:{responsive:true} });
+        }
+         function updateCharts(result, isComparison=false) {
+            const times = result.time.map(t=>t.toFixed(1));
+            chartSpeed.data.labels = times; chartSpeed.data.datasets[0].data = result.speed; chartSpeed.update();
+            chartSOC.data.labels = times; 
+            if(isComparison && savedResult) {
+                chartSOC.data.datasets = [
+                    {label:'当前 SOC', borderColor:'#16a34a', data:result.SOC},
+                    {label:'保存 SOC', borderColor:'#f59e0b', data:savedResult.SOC, borderDash:[5,5]}
+                ];
+            } else {
+                chartSOC.data.datasets = [{label:'电池 SOC', borderColor:'#16a34a', data:result.SOC}];
+            }
+            chartSOC.update();
+            chartFuel.data.labels = times; chartFuel.data.datasets[0].data = result.cumFuel_g; chartFuel.update();
+            chartMode.data.labels = times; chartMode.data.datasets[0].data = result.mode; chartMode.update();
+            chartTemp.data.labels = times; chartTemp.data.datasets[0].data = result.batteryTemp; chartTemp.update();
+            fuelTotalSpan.innerText = result.totalFuel_g.toFixed(1)+' g';
+            finalSOCSpan.innerText = (result.finalSOC*100).toFixed(1)+' %';
+            maxTempSpan.innerText = result.maxTemp.toFixed(1)+' °C';
+            mpgeSpan.innerText = result.mpge.toFixed(1);
+        }
+        
+        async function runSimulationAsync(params, cycleType) {
+            statusMsg.innerText = '⏳ 仿真计算中...';
+            await new Promise(r => setTimeout(r, 20));
+            const result = runHEVSimulation(params, cycleType);
+            updateCharts(result, false);
+            statusMsg.innerText = '✅ 仿真完成';
+            return result;
+        }
+        
+        async function optimize() {
+            statusMsg.innerText = '🔍 自动寻优中 (遗传算法迭代) ...';
+            let bestCost = Infinity;
+            let bestParams = { csFactor:0.25, minEngPower:25, evSpdMax:50 };
+            const cycle = cycleSelect.value;
+            for(let iter=0; iter<30; iter++) {
+                let cs = 0.1 + Math.random()*0.7;
+                let eng = 10 + Math.random()*50;
+                let ev = 25 + Math.random()*65;
+                let res = runHEVSimulation({ csFactor:cs, minEngPower:eng, evSpdMax:ev, mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) }, cycle);
+                let cost = res.totalFuel_g + Math.abs(res.finalSOC-0.6)*1000;
+                if(cost < bestCost) {
+                    bestCost = cost; bestParams = { csFactor:cs, minEngPower:eng, evSpdMax:ev };
+                }
+            }
+            csFactorSlider.value = bestParams.csFactor;
+            engMinPowerSlider.value = bestParams.minEngPower;
+            evSpdLimitSlider.value = bestParams.evSpdMax;
+            updateSliderDisplays();
+            await runSimulationAsync(bestParams, cycle);
+            statusMsg.innerText = `✅ 寻优完成！最优成本 ${bestCost.toFixed(1)}`;
+        }
+        
+        function exportCSV() {
+            statusMsg.innerText = '📎 导出CSV...';
+            setTimeout(()=>{
+                const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
+                const res = runHEVSimulation(params, cycleSelect.value);
+                let csvRows = [["time(s)","speed(km/h)","SOC","cumFuel(g)","mode","batteryTemp(C)"]];
+                for(let i=0; i<res.time.length; i+=5) {
+                    csvRows.push([res.time[i], res.speed[i], res.SOC[i], res.cumFuel_g[i], res.mode[i], res.batteryTemp[i]]);
+                }
+                const csvContent = csvRows.map(row=>row.join(",")).join("\n");
+                const blob = new Blob([csvContent], {type:"text/csv"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `HEV_sim_${new Date().toISOString()}.csv`;
+                a.click();
+                statusMsg.innerText = '✅ CSV导出完成';
+            }, 20);
+        }
+           function saveCompare() {
+            const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
+            savedResult = runHEVSimulation(params, cycleSelect.value);
+            compareStatus.innerText = `已保存 (油耗 ${savedResult.totalFuel_g.toFixed(1)}g)`;
+            statusMsg.innerText = '💾 当前结果已保存，可点击“运行仿真”对比';
+        }
+        
+        async function mainRun() {
+            const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
+            const res = await runSimulationAsync(params, cycleSelect.value);
+            if(savedResult) {
+                updateCharts(res, true);
+            } else {
+                updateCharts(res, false);
+            }
+        }
+        
+        runBtn.onclick = mainRun;
+        optimizeBtn.onclick = optimize;
+        saveCompareBtn.onclick = saveCompare;
+        exportCSVBtn.onclick = exportCSV;
+        window.onload = () => { initCharts(); mainRun(); };
+    })();
+</script>
+</body>
+</html>
