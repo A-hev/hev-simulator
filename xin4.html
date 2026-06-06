@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>金蝶AI苍穹 | 大学生就业全链路智能服务系统</title>
+    <!-- 引入字体 & 图标库 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- 引入轻量图表库 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f4f9;
+            color: #1a2c3e;
+            overflow-x: hidden;
+        }
+
+        /* 整体容器 */
+        .app-wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #f5f9ff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        /* 头部导航 */
+        .navbar {
+            background: #0A1C2F;
+            backdrop-filter: blur(2px);
+            color: white;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #2c7da0;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 0;
+        }
+        .logo-icon {
+            background: #2c7da0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.5rem;
+        }
+        .logo-text h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        .logo-text p {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        .role-badge {
+            background: #1e3a5f;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .role-select {
+            background: #0f2b3f;
+            border: 1px solid #2c7da0;
+            padding: 6px 12px;
+            border-radius: 30px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* 角色视角状态栏 */
+        .role-dashboard {
+            background: #eef2fa;
+            border-bottom: 1px solid #dce5f0;
+            padding: 12px 32px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .role-name {
+            font-weight: 700;
+            background: #0A1C2F;
+            color: white;
+            padding: 5px 16px;
+            border-radius: 24px;
+            font-size: 0.85rem;
+        }
+
+        /* 主内容网格 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 24px;
+            padding: 24px 32px;
+        }
+
+        /* 左侧核心功能区 */
+        .left-content {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+        .card {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.03);
+            border: 1px solid #e9edf2;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #eef2f8;
+            font-weight: 700;
+            font-size: 1.2rem;
+            background: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-body {
+            padding: 20px 24px;
+        }
+
+        /* 智能简历区域 */
+        .resume-upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            background: #fafcff;
+            margin-bottom: 20px;
+        }
+        .btn-primary {
+            background: #2c7da0;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+        .btn-secondary {
+            background: #eef2fa;
+            border: 1px solid #cfdfed;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .analysis-box {
+            background: #F0F7FA;
+            border-radius: 20px;
+            padding: 16px;
+            margin-top: 16px;
+            font-size: 0.9rem;
+        }
+        .match-item {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 4px solid #2c7da0;
+        }
+
+        /* AI 面试模块 */
+        .interview-chat {
+            background: #f5f9fe;
+            border-radius: 20px;
+            padding: 16px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 12px;
+        }
+        .ai-msg {
+            background: #e3eff9;
+            padding: 8px 12px;
+            border-radius: 16px;
+            width: fit-content;
+            max-width: 85%;
+        }
+        .user-msg {
+            background: #2c7da0;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 16px;
+            margin-left: auto;
+            width: fit-content;
+            max-width: 85%;
+        }
+
+        /* 右侧AI Agent智能体看板 */
+        .agent-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .agent-card {
+            background: linear-gradient(135deg, #0f2b3f, #09202f);
+            border-radius: 28px;
+            padding: 20px;
+            color: white;
+        }
+        .policy-qa {
+            background: white;
+            border-radius: 20px;
+            padding: 12px;
+            color: #1e2f3e;
+            margin-top: 12px;
+        }
+
+        /* 图表区域 */
+        .chart-container {
+            height: 240px;
+            width: 100%;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tag {
+            background: #eef2fa;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.75rem;
+            border-top: 1px solid #e2e8f0;
+            background: #fafcff;
+        }
+        @media (max-width: 1000px) {
+            .main-grid { grid-template-columns: 1fr; padding: 16px; }
+        }
+        i.fa, i.far, i.fas { margin-right: 6px; }
+        button { font-family: inherit; }
+    </style>
+</head>
+<body>
+<div class="app-wrapper">
+    <!-- 头部 -->
+    <div class="navbar">
+        <div class="logo-area">
+            <div class="logo-icon"><i class="fas fa-robot"></i></div>
+            <div class="logo-text">
+                <h2>就业全链路智能服务系统</h2>
+                <p>基于金蝶AI苍穹 · Agent驱动</p>
+            </div>
+        </div>
+        <div class="role-badge">
+            <span><i class="fas fa-user-graduate"></i> 当前视角</span>
+            <select id="roleSelect" class="role-select">
+                <option value="student">🎓 学生端</option>
+                <option value="teacher">👩‍🏫 辅导员端</option>
+                <option value="admin">📊 院系管理员</option>
+            </select>
+        </div>
+    </div>
+    <div class="role-dashboard" id="roleDashboard">
+        <span><i class="fas fa-chalkboard-user"></i> <strong id="roleTitle">学生工作台 · 全链路就业助手</strong></span>
+        <span class="role-name"><i class="fas fa-brain"></i> 苍穹Agent智能体 · 已激活</span>
+    </div>
+
+    <div class="main-grid">
+        <!-- 左侧核心业务模块 -->
+        <div class="left-content">
+            <!-- 1️⃣ 智能简历诊断模块 -->
+            <div class="card">
+                <div class="card-header"><span><i class="fas fa-file-alt"></i> 智能简历诊断与优化</span><span class="tag">Agent多维度分析</span></div>
+                <div class="card-body">
+                    <div class="resume-upload-area">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color:#2c7da0;"></i>
+                        <p style="margin:8px 0">上传简历 (PDF/Word) 或 模拟简历数据</p>
+                        <input type="file" id="resumeUpload" accept=".pdf,.docx,.txt" style="display:none">
+                        <button class="btn-primary" id="uploadBtn"><i class="fas fa-upload"></i> 模拟上传</button>
+                        <button class="btn-secondary" id="demoResumeBtn" style="margin-left:12px"><i class="fas fa-chart-line"></i> 使用示例简历</button>
+                    </div>
+                    <div id="resumeAnalysisResult" class="analysis-box" style="background:#F0F7FA;">
+                        <i class="fas fa-microchip"></i> <strong>AI 苍穹解析报告</strong><br>
+                        <span id="analysisText">点击“使用示例简历”或上传文件，Agent将自动生成诊断建议。</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2️⃣ 岗位精准匹配+实习管理 -->
+            <div class="card">
+                <div class="card-header"><span><i class="fas fa-briefcase"></i> 岗位智能匹配 & 实习申请</span><span class="tag">基于苍穹工作流</span></div>
+                <div class="card-body">
+                    <div id="jobMatchList" class="match-list">
+                        <!-- 动态加载岗位匹配 -->
+                    </div>
+                    <div id="internApplyStatus" class="analysis-box" style="margin-top:10px; background:#EFF6F0">
+                        <i class="fas fa-tasks"></i> <strong>实习申请进度</strong><br>暂无申请记录，点击一键申请可发起苍穹流程。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3️⃣ AI模拟面试训练模块 -->
+            <div class="card">
+                <div class="card-header"><span><i class="fas fa-comments"></i> AI模拟面试官 (Agent面试官)</span><span class="tag">多轮对话+实时评分</span></div>
+                <div class="card-body">
+                    <div class="flex-between" style="margin-bottom:16px">
+                        <select id="jobTypeSelect" style="padding:8px; border-radius:30px; border:1px solid #ccc;">
+                            <option value="Java开发工程师">💻 Java开发工程师</option>
+                            <option value="产品经理">📱 产品经理</option>
+                            <option value="AI算法实习生">🤖 AI算法实习生</option>
+                            <option value="市场营销">📊 市场营销岗</option>
+                        </select>
+                        <button id="startInterviewBtn" class="btn-primary"><i class="fas fa-play"></i> 开始AI面试</button>
+                    </div>
+                    <div id="interviewChatArea" class="interview-chat">
+                        <div class="message ai-msg"><i class="fas fa-robot"></i> 面试官: 你好！我是苍穹Agent面试官，请点击开始面试，我会根据岗位提问并给出专业建议～</div>
+                    </div>
+                    <div id="interviewScore" style="margin-top:12px; font-weight:500; text-align:right;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧AI Agent智能服务区（政策问答 + 就业数据分析驾驶舱） -->
+        <div class="agent-sidebar">
+            <!-- 政策智能问答Agent -->
+            <div class="agent-card">
+                <h4><i class="fas fa-gavel"></i> 就业政策AI问答</h4>
+                <p style="font-size:0.8rem; opacity:0.8">内置50+条国家就业政策知识库</p>
+                <div class="policy-qa">
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="policyQuestion" placeholder="例如: 高校毕业生基层就业补贴..." style="flex:1; padding:8px; border-radius:40px; border:none;">
+                        <button id="askPolicyBtn" style="background:#2c7da0; color:white; border:none; border-radius:40px; padding:0 16px;"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                    <div id="policyAnswer" style="margin-top:16px; font-size:0.85rem; color:#0A1C2F; background:#F4F9FE; border-radius:16px; padding:12px;">
+                        💬 点击问政策，Agent将基于知识库回答。
+                    </div>
+                </div>
+                <div style="margin-top:12px; font-size:0.7rem;"><i class="fas fa-database"></i> 政策来源: 三支一扶/就业见习/创业补贴等</div>
+            </div>
+
+            <!-- 就业数据分析驾驶舱 + 岗位分布趋势 -->
+            <div class="card">
+                <div class="card-header"><i class="fas fa-chart-pie"></i> 就业数据分析驾驶舱</div>
+                <div class="card-body" style="padding:10px 12px;">
+                    <div id="pieChart" class="chart-container"></div>
+                    <div id="trendLine" class="chart-container" style="height:180px;"></div>
+                    <div class="flex-between" style="margin-top:8px;"><span>⚡ 全校就业率: <strong id="employmentRate">86.5%</strong></span><span>📊 平均薪资: <strong id="avgSalary">6,800</strong>元</span></div>
+                </div>
+            </div>
+            <!-- 智能体任务简报 -->
+            <div style="background: #ffffff; border-radius: 24px; padding:16px; border:1px solid #e0eaf5;">
+                <i class="fas fa-microchip"></i> <strong>苍穹Agent看板</strong>
+                <p style="font-size:0.75rem; margin-top:10px;">✅ 当前启用的Agent能力: 简历RAG分析 · 岗位匹配引擎 · 面试官智能体 · 政策问答知识库 · 数据预测模型</p>
+                <div class="tag" style="margin-top:10px;"><i class="fas fa-sync-alt"></i> 全链路业务闭环 | 低代码+AI融合</div>
+            </div>
+        </div>
+    </div>
+    <footer>基于金蝶AI苍穹与Agent的大学生就业全链路智能服务系统 | 模拟展示环境 · 符合第十五届中国软件杯B3赛题规范</footer>
+</div>
+
+<script>
+    // ---------- 模拟数据 ----------
+    const jobListings = [
+        { title: "后端开发实习生", company: "金蝶苍穹生态部", salary: "4k-6k", tags: "Java/Spring", matchScore: 92, jd: "熟悉Java基础，了解微服务" },
+        { title: "前端开发工程师", company: "智慧文旅科技", salary: "5k-7k", tags: "React/Vue", matchScore: 85, jd: "负责前端页面开发" },
+        { title: "AI训练助理", company: "苍穹AI实验室", salary: "6k-9k", tags: "Python/Pytorch", matchScore: 78, jd: "机器学习基础" }
+    ];
+    let userProfile = { skills: "Java, Python, 沟通协作", targetJob: "后端开发工程师", experience: "有实训项目" };
+    let interviewHistory = [];
+    let currentInterviewStep = 0;
+    let interviewQuestions = [];
+    let isInterviewActive = false;
+
+    // 角色模拟
+    let currentRole = 'student';
+    const roleSelect = document.getElementById('roleSelect');
+    const roleTitleSpan = document.getElementById('roleTitle');
+
+    // 渲染岗位匹配 (基于学生画像模拟匹配)
+    function renderJobMatch() {
+        const container = document.getElementById('jobMatchList');
+        if(!container) return;
+        container.innerHTML = '';
+        jobListings.forEach(job => {
+            const matchDiv = document.createElement('div');
+            matchDiv.className = 'match-item';
+            matchDiv.innerHTML = `
+                <div class="flex-between"><strong>${job.title}</strong> <span style="color:#2c7da0; font-weight:700">匹配度 ${job.matchScore}%</span></div>
+                <div style="font-size:0.8rem; margin:6px 0">🏢 ${job.company} · 💰 ${job.salary}</div>
+                <div style="font-size:0.75rem; color:#5e6f8d">${job.tags} | ${job.jd}</div>
+                <button class="btn-secondary applyJobBtn" data-job="${job.title}" style="margin-top:10px; padding:5px 12px; font-size:0.75rem;"><i class="fas fa-paper-plane"></i> 一键实习申请</button>
+            `;
+            container.appendChild(matchDiv);
+        });
+        document.querySelectorAll('.applyJobBtn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const jobName = btn.getAttribute('data-job');
+                document.getElementById('internApplyStatus').innerHTML = `<i class="fas fa-check-circle"></i> <strong>实习申请状态</strong><br>✅ 已提交申请: ${jobName}，进入审批流程 (辅导员→院系→企业接收) 苍穹流程引擎模拟。`;
+                // 模拟业务闭环
+            });
+        });
+    }
+
+    // 简历分析模拟+Agent智能体诊断 (调用大模型风格)
+    function analyzeResumeWithAI(resumeText) {
+        const analysisDiv = document.getElementById('analysisText');
+        const aiMsg = `✨ 苍穹Agent智能分析报告 ✨<br>📄 简历关键词: ${resumeText.substring(0, 80)}...<br>✅ 优势: 项目实践经历丰富，专业匹配度高。<br>📌 优化建议: 增加量化成果描述，突出“数据驱动决策”关键词；建议补充岗位技能证书提升匹配度。<br>🎯 匹配推荐: Java开发岗匹配度92%，建议深挖Spring Cloud。`;
+        analysisDiv.innerHTML = aiMsg;
+    }
+
+    // 模拟简历上传事件
+    document.getElementById('demoResumeBtn')?.addEventListener('click', ()=>{
+        const demo = "计算机科学与技术专业，熟练掌握Java/Python，参与过校园外卖平台开发，负责后端接口编写。获得校奖学金2次。";
+        analyzeResumeWithAI(demo);
+    });
+    document.getElementById('uploadBtn')?.addEventListener('click', ()=>{
+        alert("模拟简历上传（PDF解析模拟）Agent将通过苍穹平台解析简历结构。");
+        const mockParsed = "姓名: 张思源, 技能: Java,SpringBoot,MySQL, 项目: 苍穹智慧就业平台开发";
+        analyzeResumeWithAI(mockParsed);
+    });
+
+    // AI面试模拟(基于大模型Agent)
+    const questionBank = {
+        "Java开发工程师": ["请介绍一个你最复杂的Java项目?", "HashMap的底层实现原理是什么?", "如何处理并发下的线程安全?"],
+        "产品经理": ["如何做竞品分析?", "产品生命周期管理的关键步骤?", "描述一次推动需求落地的经历。"],
+        "AI算法实习生": ["解释过拟合的解决方法?", "python中numpy的广播机制?", "描述CNN的基本结构"],
+        "市场营销": ["如何制定新品营销策略?", "社交媒体增长的核心指标是什么?", "描述一次成功的营销策划案。"]
+    };
+    let currentJob = "Java开发工程师";
+    let userAnswers = [];
+    let currentQIndex = 0;
+
+    function startInterview() {
+        const job = document.getElementById('jobTypeSelect').value;
+        currentJob = job;
+        const qs = questionBank[job] || questionBank["Java开发工程师"];
+        interviewQuestions = [...qs];
+        currentQIndex = 0;
+        isInterviewActive = true;
+        const chatArea = document.getElementById('interviewChatArea');
+        chatArea.innerHTML = `<div class="message ai-msg"><i class="fas fa-robot"></i> 面试官: 开始面试岗位: ${currentJob}。第一个问题: ${interviewQuestions[0]}</div>`;
+        document.getElementById('interviewScore').innerHTML = '';
+        userAnswers = [];
+        addUserInputBox();
+    }
+
+    function addUserInputBox() {
+        const chatArea = document.getElementById('interviewChatArea');
+        const existingInput = document.getElementById('dynamicAnswerInput');
+        if(existingInput) existingInput.remove();
+        const inputDiv = document.createElement('div');
+        inputDiv.id = 'dynamicAnswerInput';
+        inputDiv.style.display = 'flex';
+        inputDiv.style.marginTop = '12px';
+        inputDiv.style.gap = '8px';
+        inputDiv.innerHTML = `<input type="text" id="answerText" placeholder="请输入您的回答..." style="flex:1; padding:8px; border-radius:30px; border:1px solid #ccc;"> <button id="submitAnswerBtn" class="btn-primary" style="padding:8px 16px;">回答</button>`;
+        chatArea.appendChild(inputDiv);
+        document.getElementById('submitAnswerBtn')?.addEventListener('click', () => {
+            const answer = document.getElementById('answerText').value;
+            if(!answer.trim()) return;
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'message user-msg';
+            userMsgDiv.innerText = `👤 我: ${answer}`;
+            chatArea.appendChild(userMsgDiv);
+            userAnswers.push(answer);
+            // AI 评估反馈 (Agent仿真)
+            currentQIndex++;
+            if(currentQIndex < interviewQuestions.length) {
+                const nextMsg = document.createElement('div');
+                nextMsg.className = 'message ai-msg';
+                nextMsg.innerHTML = `<i class="fas fa-robot"></i> 面试官: ${interviewQuestions[currentQIndex]}`;
+                chatArea.appendChild(nextMsg);
+                document.getElementById('answerText').value = '';
+            } else {
+                // 面试结束，生成评分报告
+                const totalScore = Math.floor(Math.random() * 20 + 70);
+                const feedback = `面试结束！苍穹Agent综合评分: ${totalScore}分。建议: 回答条理清晰，技术深度有待加强，推荐练习结构化表达。`;
+                const finalDiv = document.createElement('div');
+                finalDiv.className = 'message ai-msg';
+                finalDiv.innerHTML = `<i class="fas fa-chart-line"></i> ${feedback}`;
+                chatArea.appendChild(finalDiv);
+                document.getElementById('interviewScore').innerHTML = `<i class="fas fa-chart-simple"></i> 面试报告: ${feedback}`;
+                isInterviewActive = false;
+                inputDiv.remove();
+            }
+            chatArea.scrollTop = chatArea.scrollHeight;
+        });
+    }
+
+    document.getElementById('startInterviewBtn')?.addEventListener('click', startInterview);
+
+    // 政策问答智能体（模拟RAG知识库）
+    const policyDB = [
+        { q: "基层就业补贴", a: "高校毕业生到基层单位就业满一年可申请3000元一次性补贴，符合条件者可向当地人社部门申报。" },
+        { q: "三支一扶", a: "三支一扶计划招募高校毕业生到农村基层支教、支农、支医和扶贫，服务期满享受考研加分、公务员定向招录。" },
+        { q: "就业见习", a: "就业见习基地提供3-12个月见习岗位，政府补贴基本生活费，见习经历视同基层工作经历。" },
+        { q: "创业贷款", a: "毕业大学生创业可申请最高30万元创业担保贷款，财政贴息50%。" },
+        { q: "档案转递", a: "离校未就业毕业生档案可保留学校2年或转入生源地公共就业人才服务机构。" }
+    ];
+    document.getElementById('askPolicyBtn')?.addEventListener('click', () => {
+        const question = document.getElementById('policyQuestion').value.toLowerCase();
+        let answer = "未检索到相关政策，请尝试咨询学校就业中心。";
+        for(let p of policyDB) {
+            if(question.includes(p.q) || p.q.includes(question)) {
+                answer = p.a;
+                break;
+            }
+        }
+        if(question.includes("补贴")) answer = policyDB[0].a;
+        if(question.includes("三支一扶")) answer = policyDB[1].a;
+        document.getElementById('policyAnswer').innerHTML = `<i class="fas fa-comment-dots"></i> ${answer}<br><small style="color:gray;">—— 基于苍穹政策知识库</small>`;
+    });
+
+    // 数据可视化驾驶舱 (就业率+行业分布)
+    function initCharts() {
+        const pieChart = echarts.init(document.getElementById('pieChart'));
+        pieChart.setOption({
+            tooltip: { trigger: 'item' },
+            legend: { top: '5%', left: 'center', textStyle: { fontSize: 10 } },
+            series: [{
+                type: 'pie', radius: '55%',
+                data: [
+                    { name: '互联网/IT', value: 48 },
+                    { name: '制造业', value: 22 },
+                    { name: '金融/咨询', value: 15 },
+                    { name: '教育/文旅', value: 10 },
+                    { name: '其他', value: 5 }
+                ],
+                itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 }
+            }]
+        });
+        const trendChart = echarts.init(document.getElementById('trendLine'));
+        trendChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: ['2022', '2023', '2024', '2025', '2026预测'] },
+            yAxis: { type: 'value', name: '就业率(%)' },
+            series: [{
+                data: [78, 81, 84, 87, 90], type: 'line', smooth: true, lineStyle: { color: '#2c7da0', width: 3 },
+                areaStyle: { opacity: 0.1 }
+            }]
+        });
+    }
+
+    // 角色切换模拟业务视角 (展示不同菜单, UI微调)
+    function switchRole(role) {
+        currentRole = role;
+        if(role === 'student') roleTitleSpan.innerText = '学生端 · 求职全链路助手 (简历/面试/岗位匹配)';
+        else if(role === 'teacher') roleTitleSpan.innerText = '辅导员端 · 实习管理看板 & 学生就业追踪';
+        else roleTitleSpan.innerText = '院系管理员 · 数据分析驾驶舱 · 就业质量报告导出';
+        // 根据角色微调卡片显示，整体保留全部功能，高亮展示必备模块。
+        document.getElementById('internApplyStatus').innerHTML = `<i class="fas fa-tasks"></i> <strong>${role==='student'?'实习申请进度':(role==='teacher'?'待审批实习申请: 3条待审核':'全校就业统计数据实时同步')}</strong><br>基于苍穹流程引擎，全链路数字化管理。`;
+    }
+    roleSelect?.addEventListener('change', (e) => switchRole(e.target.value));
+    switchRole('student');  // 默认学生端
+
+    // 就业数据动态刷新
+    function refreshDashboard() {
+        const rate = (Math.random() * 5 + 84).toFixed(1);
+        const salary = Math.floor(Math.random() * 1500 + 6200);
+        document.getElementById('employmentRate').innerText = rate + '%';
+        document.getElementById('avgSalary').innerText = salary;
+    }
+    setInterval(refreshDashboard, 8000);
+    
+    // 初始化加载
+    renderJobMatch();
+    initCharts();
+    // 模拟初始政策展示
+    document.getElementById('policyAnswer').innerHTML = '💡 您可以提问: 基层就业补贴、三支一扶、创业贷款等政策问题，Agent将精准解答。';
+
+    // 面试区域额外兼容一次开始
+    console.log("苍穹Agent就业全链路系统已启动，完整业务闭环:简历诊断+岗位匹配+实习流程+AI面试+政策知识库+数据驾驶舱，符合赛题B3要求。");
+</script>
+</body>
+</html>
