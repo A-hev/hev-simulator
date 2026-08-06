@@ -1,360 +1,916 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>自适应 HEV 能量管理仿真系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>💖 给赖芸的一封情书 💖</title>
     <style>
-        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
-        body { background: #f0f4f8; margin: 0; padding: 20px; }
-        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 28px; box-shadow: 0 12px 30px rgba(0,0,0,0.1); overflow: hidden; }
-        header { background: #1e3c72; color: white; padding: 16px 24px; }
-        header h1 { margin: 0; font-size: 1.6rem; }
-        header p { margin: 6px 0 0; opacity: 0.8; }
-        .main-grid { display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; }
-        .control-panel { flex: 1.2; min-width: 280px; background: #f8fafc; border-radius: 20px; padding: 18px; }
-        .chart-panel { flex: 3; min-width: 550px; }
-        .param-group { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
-        .param-label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
-        input[type="range"] { width: 100%; accent-color: #2563eb; }
-        button { background: #2563eb; color: white; border: none; border-radius: 40px; padding: 10px 16px; font-size: 0.9rem; font-weight: bold; cursor: pointer; margin-top: 8px; margin-right: 8px; }
-        button:hover { background: #1d4ed8; }
-        .btn-secondary { background: #475569; }
-        .btn-secondary:hover { background: #334155; }
-        .metrics { background: #e6f0ff; border-radius: 20px; padding: 12px 16px; margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-        .metric-card { background: white; border-radius: 20px; padding: 8px 14px; text-align: center; flex: 1; min-width: 100px; }
-        .metric-value { font-size: 1.4rem; font-weight: 800; color: #1e3c72; }
-        .chart-container { background: white; border-radius: 20px; padding: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        canvas { max-height: 200px; width: 100%; }
-        footer { text-align: center; padding: 16px; font-size: 0.75rem; color: #475569; border-top: 1px solid #e2e8f0; }
-        select { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbd5e1; background: white; margin-top: 8px; width: 100%; }
-        .status-msg { font-size: 0.8rem; color: #2563eb; margin-top: 8px; text-align: center; }
-        @media (max-width: 800px) { .main-grid { flex-direction: column; } .chart-panel { min-width: auto; } }
-            </style>
+        /* ===== 全局重置 & 字体 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            overflow: hidden;
+            height: 100vh;
+            background: #0d0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        /* ===== 画布 (粒子背景) ===== */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== 主卡片 ===== */
+        .card {
+            position: relative;
+            z-index: 10;
+            max-width: 680px;
+            width: 90%;
+            padding: 40px 36px 50px;
+            background: rgba(20, 12, 40, 0.65);
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border-radius: 60px 20px 60px 20px;
+            border: 1px solid rgba(255, 200, 255, 0.25);
+            box-shadow:
+                0 30px 80px rgba(255, 80, 180, 0.25),
+                0 0 0 1px rgba(255, 120, 220, 0.15) inset,
+                0 0 60px rgba(255, 100, 200, 0.15);
+            text-align: center;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: cardFloat 6s ease-in-out infinite;
+        }
+
+        .card:hover {
+            transform: scale(1.01) translateY(-4px);
+        }
+
+        @keyframes cardFloat {
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        /* ===== 闪光边框 (动态光晕) ===== */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 62px 22px 62px 22px;
+            background: conic-gradient(from 0deg,
+                    transparent,
+                    rgba(255, 150, 255, 0.5),
+                    rgba(255, 80, 200, 0.7),
+                    rgba(200, 100, 255, 0.6),
+                    rgba(100, 200, 255, 0.4),
+                    transparent);
+            z-index: -1;
+            animation: spinGlow 8s linear infinite;
+            opacity: 0.7;
+            filter: blur(2px);
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 64px 24px 64px 24px;
+            background: conic-gradient(from 90deg,
+                    transparent,
+                    rgba(255, 255, 200, 0.3),
+                    rgba(255, 180, 255, 0.5),
+                    transparent);
+            z-index: -1;
+            animation: spinGlow 10s linear infinite reverse;
+            opacity: 0.4;
+            filter: blur(6px);
+        }
+
+        @keyframes spinGlow {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== 闪光星星 (装饰) ===== */
+        .sparkle-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            border-radius: inherit;
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #fff9e6, #ffb3ff, transparent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px #ffb3ff, 0 0 24px #ff6fcf;
+            animation: sparkleTwinkle 2.4s ease-in-out infinite alternate;
+            opacity: 0;
+        }
+
+        .sparkle:nth-child(1) {
+            top: 12%;
+            left: 8%;
+            animation-delay: 0.0s;
+            width: 8px;
+            height: 8px;
+        }
+        .sparkle:nth-child(2) {
+            top: 18%;
+            right: 12%;
+            animation-delay: 0.6s;
+            width: 5px;
+            height: 5px;
+        }
+        .sparkle:nth-child(3) {
+            bottom: 22%;
+            left: 6%;
+            animation-delay: 1.2s;
+            width: 7px;
+            height: 7px;
+        }
+        .sparkle:nth-child(4) {
+            bottom: 30%;
+            right: 8%;
+            animation-delay: 0.3s;
+            width: 9px;
+            height: 9px;
+        }
+        .sparkle:nth-child(5) {
+            top: 45%;
+            left: 3%;
+            animation-delay: 0.9s;
+            width: 4px;
+            height: 4px;
+        }
+        .sparkle:nth-child(6) {
+            top: 55%;
+            right: 4%;
+            animation-delay: 1.5s;
+            width: 6px;
+            height: 6px;
+        }
+        .sparkle:nth-child(7) {
+            top: 8%;
+            left: 50%;
+            animation-delay: 0.4s;
+            width: 10px;
+            height: 10px;
+        }
+        .sparkle:nth-child(8) {
+            bottom: 10%;
+            left: 45%;
+            animation-delay: 1.1s;
+            width: 7px;
+            height: 7px;
+        }
+
+        @keyframes sparkleTwinkle {
+            0% {
+                opacity: 0.1;
+                transform: scale(0.6) rotate(0deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1.4) rotate(180deg);
+                box-shadow: 0 0 20px #ffd0ff, 0 0 40px #ff80d0, 0 0 80px #ff40aa;
+            }
+        }
+
+        /* ===== 标题 & 名字 ===== */
+        .greeting {
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            color: rgba(255, 210, 255, 0.8);
+            text-shadow: 0 0 20px rgba(255, 150, 255, 0.4);
+            margin-bottom: 8px;
+            font-weight: 300;
+        }
+
+        .name {
+            font-size: 4.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffb3ff, #ff6fcf, #ffb3ff, #a8e6ff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(255, 100, 200, 0.3);
+            letter-spacing: 6px;
+            margin: 4px 0 6px;
+            line-height: 1.2;
+            position: relative;
+        }
+
+        .name::after {
+            content: '✨';
+            font-size: 2rem;
+            -webkit-text-fill-color: initial;
+            color: #ffd700;
+            text-shadow: 0 0 30px #ffd700;
+            margin-left: 6px;
+            display: inline-block;
+            animation: sparkleName 1.8s ease-in-out infinite alternate;
+        }
+
+        .name::before {
+            content: '✨';
+            font-size: 2rem;
+            -webkit-text-fill-color: initial;
+            color: #ffd700;
+            text-shadow: 0 0 30px #ffd700;
+            margin-right: 6px;
+            display: inline-block;
+            animation: sparkleName 1.8s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes sparkleName {
+            0% {
+                opacity: 0.4;
+                transform: scale(0.7) rotate(-10deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1.3) rotate(10deg);
+            }
+        }
+
+        @keyframes gradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        /* ===== 分隔装饰 ===== */
+        .divider {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0 20px;
+            color: rgba(255, 180, 255, 0.5);
+            font-size: 1.2rem;
+        }
+
+        .divider .line {
+            flex: 1;
+            max-width: 80px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 150, 255, 0.5), transparent);
+        }
+
+        /* ===== 正文 ===== */
+        .message {
+            font-size: 1.2rem;
+            line-height: 2;
+            color: rgba(255, 235, 255, 0.92);
+            text-shadow: 0 0 20px rgba(255, 150, 255, 0.15);
+            margin: 12px 0 18px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .message .highlight {
+            color: #ffb3ff;
+            font-weight: 600;
+            text-shadow: 0 0 30px rgba(255, 100, 200, 0.5);
+            animation: pulseText 2.4s ease-in-out infinite;
+        }
+
+        @keyframes pulseText {
+            0%,
+            100% {
+                opacity: 0.8;
+                text-shadow: 0 0 20px rgba(255, 100, 200, 0.3);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 40px rgba(255, 100, 200, 0.8), 0 0 80px rgba(255, 50, 150, 0.4);
+            }
+        }
+
+        .heart-line {
+            font-size: 2rem;
+            margin: 6px 0 10px;
+            animation: heartBeat 1.6s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        @keyframes heartBeat {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            14% {
+                transform: scale(1.3);
+            }
+            28% {
+                transform: scale(1);
+            }
+            42% {
+                transform: scale(1.2);
+            }
+            56% {
+                transform: scale(1);
+            }
+        }
+
+        /* ===== 按钮 ===== */
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 14px 40px;
+            border: none;
+            border-radius: 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background: linear-gradient(135deg, #ff6fcf, #c084fc);
+            color: #fff;
+            box-shadow: 0 8px 30px rgba(255, 80, 200, 0.4);
+            position: relative;
+            overflow: hidden;
+            font-family: inherit;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 60px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .btn:hover {
+            transform: scale(1.06) translateY(-3px);
+            box-shadow: 0 12px 50px rgba(255, 80, 200, 0.6);
+        }
+
+        .btn:hover::before {
+            opacity: 1;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 200, 255, 0.3);
+            box-shadow: 0 8px 30px rgba(255, 80, 200, 0.15);
+            color: #f0d0ff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 200, 255, 0.6);
+            box-shadow: 0 12px 50px rgba(255, 80, 200, 0.3);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 520px) {
+            .card {
+                padding: 30px 20px 36px;
+                border-radius: 40px 16px 40px 16px;
+            }
+            .name {
+                font-size: 2.8rem;
+                letter-spacing: 4px;
+            }
+            .name::before,
+            .name::after {
+                font-size: 1.4rem;
+            }
+            .message {
+                font-size: 1.0rem;
+                line-height: 1.8;
+            }
+            .btn {
+                padding: 12px 28px;
+                font-size: 1.0rem;
+            }
+            .greeting {
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .name {
+                font-size: 2.2rem;
+            }
+            .btn-group {
+                gap: 12px;
+            }
+            .btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* ===== 浮动爱心 (纯CSS装饰) ===== */
+        .floating-hearts {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .floating-heart {
+            position: absolute;
+            font-size: 1.6rem;
+            opacity: 0.25;
+            animation: floatHeartUp 12s linear infinite;
+            color: #ff6fcf;
+            text-shadow: 0 0 20px rgba(255, 80, 200, 0.3);
+        }
+
+        .floating-heart:nth-child(1) {
+            left: 5%;
+            animation-duration: 14s;
+            animation-delay: 0s;
+            font-size: 2rem;
+        }
+        .floating-heart:nth-child(2) {
+            left: 20%;
+            animation-duration: 16s;
+            animation-delay: 2s;
+            font-size: 1.2rem;
+        }
+        .floating-heart:nth-child(3) {
+            left: 40%;
+            animation-duration: 12s;
+            animation-delay: 4s;
+            font-size: 2.4rem;
+        }
+        .floating-heart:nth-child(4) {
+            left: 60%;
+            animation-duration: 18s;
+            animation-delay: 1s;
+            font-size: 1.0rem;
+        }
+        .floating-heart:nth-child(5) {
+            left: 78%;
+            animation-duration: 15s;
+            animation-delay: 3s;
+            font-size: 1.8rem;
+        }
+        .floating-heart:nth-child(6) {
+            left: 92%;
+            animation-duration: 13s;
+            animation-delay: 5s;
+            font-size: 1.4rem;
+        }
+
+        @keyframes floatHeartUp {
+            0% {
+                bottom: -10%;
+                transform: translateX(0) rotate(0deg) scale(0.6);
+                opacity: 0.1;
+            }
+            10% {
+                opacity: 0.3;
+            }
+            50% {
+                transform: translateX(30px) rotate(15deg) scale(1);
+                opacity: 0.35;
+            }
+            90% {
+                opacity: 0.2;
+            }
+            100% {
+                bottom: 110%;
+                transform: translateX(-20px) rotate(-10deg) scale(0.8);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-    <header>
-        <h1>⚡ 自适应 HEV 能量管理仿真系统</h1>
-        <p>标准驾驶循环 | 自动寻优 | 结果对比 | 数据导出 | 电池热模型</p >
-    </header>
-    <div class="main-grid">
-        <div class="control-panel">
-            <div class="param-group">
-                <div class="param-label"><span>🔁 CS因子（电量维持）</span><span id="csFactorVal">0.25</span></div>
-                <input type="range" id="csFactor" min="0.05" max="0.8" step="0.01" value="0.25">
-                <div class="param-label"><span>⚙️ 发动机最小功率 (kW)</span><span id="engMinPowerVal">25</span></div>
-                <input type="range" id="engMinPower" min="8" max="60" step="1" value="25">
-                <div class="param-label"><span>⚡ EV最高车速 (km/h)</span><span id="evSpdLimitVal">50</span></div>
-                <input type="range" id="evSpdLimit" min="20" max="90" step="2" value="50">
-                <div class="param-label"><span>🚗 整车质量 (kg)</span><span id="massVal">1500</span></div>
-                <input type="range" id="vehicleMass" min="1000" max="2200" step="20" value="1500">
-                <div class="param-label"><span>🔋 电池容量 (Ah)</span><span id="battCapVal">50</span></div>
-                <input type="range" id="battCap" min="30" max="100" step="2" value="50">
-            </div>
-            <div class="param-group">
-                <div class="param-label"><span>📊 驾驶循环</span></div>
-                <select id="cycleSelect">
-                    <option value="ftp75">FTP75 (城市/高速)</option>
-                    <option value="wltc">WLTC (全球轻型车测试)</option>
-                    <option value="nedc">NEDC (欧洲)</option>
-                </select>
-                <button id="runSimBtn" style="width:100%; margin-top:12px;">▶ 运行仿真</button>
-                <button id="optimizeBtn" class="btn-secondary" style="width:100%;">🔍 自动寻优 (遗传算法)</button>
-                <button id="saveCompareBtn" class="btn-secondary" style="width:48%;">💾 保存结果</button>
-                <button id="exportCSVBtn" class="btn-secondary" style="width:48%;">📎 导出CSV</button>
-                <div id="statusMsg" class="status-msg">✅ 就绪</div>
-            </div>
-            <div class="metrics" id="metricsPanel">
-                <div class="metric-card">⛽ 油耗<br><span id="fuelTotal" class="metric-value">-- g</span></div>
-                <div class="metric-card">🔋 最终 SOC<br><span id="finalSOC" class="metric-value">-- %</span></div>
-                <div class="metric-card">🌡️ 最高电池温度<br><span id="maxTemp" class="metric-value">-- °C</span></div>
-                <div class="metric-card">📊 等效 MPGe<br><span id="mpge" class="metric-value">--</span></div>
-                   </div>
-            <div id="comparePanel" style="font-size:0.75rem; margin-top:8px; background:#f1f5f9; border-radius:16px; padding:8px;">
-                对比模式: <span id="compareStatus">未保存结果</span>
-            </div>
+
+    <!-- ===== 粒子背景 (Canvas) ===== -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- ===== 浮动爱心装饰 ===== -->
+    <div class="floating-hearts">
+        <span class="floating-heart">❤️</span>
+        <span class="floating-heart">💖</span>
+        <span class="floating-heart">💗</span>
+        <span class="floating-heart">❤️‍🔥</span>
+        <span class="floating-heart">💕</span>
+        <span class="floating-heart">💘</span>
+    </div>
+
+    <!-- ===== 主卡片 ===== -->
+    <div class="card" id="card">
+
+        <!-- 闪光装饰 -->
+        <div class="sparkle-container">
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
+            <span class="sparkle"></span>
         </div>
-        <div class="chart-panel">
-            <div class="chart-container"><canvas id="speedChart"></canvas></div>
-            <div class="chart-container"><canvas id="socChart"></canvas></div>
-            <div class="chart-container"><canvas id="fuelChart"></canvas></div>
-            <div class="chart-container"><canvas id="modeChart"></canvas></div>
-            <div class="chart-container"><canvas id="tempChart"></canvas></div>
+
+        <!-- 内容 -->
+        <div class="greeting">💫 致 我 心 中 的 星 光 💫</div>
+
+        <div class="name">赖 芸</div>
+
+        <div class="divider">
+            <span class="line"></span>
+            <span style="color: #ff8fd0;">✦</span>
+            <span class="line"></span>
+        </div>
+
+        <div class="message">
+            从第一眼见到你，<br />
+            我的世界就 <span class="highlight">亮了</span> 起来。<br />
+            你是我写过最温柔的诗，<br />
+            也是我最想守护的 <span class="highlight">梦</span>。<br />
+            <span class="heart-line">💖</span>
+        </div>
+
+        <div class="divider">
+            <span class="line"></span>
+            <span style="color: #ff8fd0;">♡</span>
+            <span class="line"></span>
+        </div>
+
+        <div class="message" style="font-size:1.0rem; opacity:0.8; margin-top: -4px;">
+            “ 赖芸，你愿意做我的女主角吗？ ”
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" id="btnYes">💗 当然愿意</button>
+            <button class="btn btn-secondary" id="btnHeart">✨ 送你一颗心</button>
+        </div>
+
+        <div style="margin-top:20px; font-size:0.8rem; color:rgba(255,200,255,0.35); letter-spacing:2px;">
+            ✦ 每一天都在想你 ✦
         </div>
     </div>
-    <footer>🎯 增强功能: 标准循环 | 自动寻优(GA) | 结果对比 | 数据导出 | 电池热模型</footer>
-</div>
-<script>
-    (function(){
-        // DOM 绑定
-        const csFactorSlider = document.getElementById('csFactor');
-        const csFactorVal = document.getElementById('csFactorVal');
-        const engMinPowerSlider = document.getElementById('engMinPower');
-        const engMinPowerVal = document.getElementById('engMinPowerVal');
-        const evSpdLimitSlider = document.getElementById('evSpdLimit');
-        const evSpdLimitVal = document.getElementById('evSpdLimitVal');
-        const massSlider = document.getElementById('vehicleMass');
-        const massVal = document.getElementById('massVal');
-        const battCapSlider = document.getElementById('battCap');
-        const battCapVal = document.getElementById('battCapVal');
-        const runBtn = document.getElementById('runSimBtn');
-        const optimizeBtn = document.getElementById('optimizeBtn');
-        const saveCompareBtn = document.getElementById('saveCompareBtn');
-        const exportCSVBtn = document.getElementById('exportCSVBtn');
-        const cycleSelect = document.getElementById('cycleSelect');
-        const statusMsg = document.getElementById('statusMsg');
-        const compareStatus = document.getElementById('compareStatus');
-        
-        const fuelTotalSpan = document.getElementById('fuelTotal');
-        const finalSOCSpan = document.getElementById('finalSOC');
-        const maxTempSpan = document.getElementById('maxTemp');
-        const mpgeSpan = document.getElementById('mpge');
-        
-        function updateSliderDisplays() {
-            csFactorVal.innerText = csFactorSlider.value;
-            engMinPowerVal.innerText = engMinPowerSlider.value;
-            evSpdLimitVal.innerText = evSpdLimitSlider.value;
-            massVal.innerText = massSlider.value;
-            battCapVal.innerText = battCapSlider.value;
+
+    <script>
+        // =========================================
+        // 1. 粒子背景 (闪烁星光 + 流星)
+        // =========================================
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        const PARTICLE_COUNT = 160;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
         }
-        csFactorSlider.addEventListener('input', updateSliderDisplays);
-        engMinPowerSlider.addEventListener('input', updateSliderDisplays);
-        evSpdLimitSlider.addEventListener('input', updateSliderDisplays);
-        massSlider.addEventListener('input', updateSliderDisplays);
-        battCapSlider.addEventListener('input', updateSliderDisplays);
-        updateSliderDisplays();
-        
-        // 标准驾驶循环生成 (真实速度曲线)
-        function generateDriveCycle(cycleType, dt=0.5) {
-            let t=[], v=[];
-            let duration=600; // 秒
-            if(cycleType === 'ftp75') {
-                for(let time=0; time<=duration; time+=dt) {
-                    t.push(time);
-                    let spd = 20 + 15*Math.sin(2*Math.PI*time/80);
-                    if(time>200 && time<350) spd += 10;
-                    if(time>400 && time<500) spd = Math.min(90, spd+20);
-                    v.push(Math.max(0, Math.min(105, spd + (Math.random()-0.5)*2)));
-                }
-            } else if(cycleType === 'wltc') {
-                for(let time=0; time<=duration; time+=dt) {
-                    t.push(time);
-                    let spd = 15 + 12*Math.sin(2*Math.PI*time/100) + 8*Math.sin(2*Math.PI*time/300);
-                    v.push(Math.max(0, Math.min(130, spd + (Math.random()-0.5)*2)));
-                }
-            } else { // nedc
-                for(let time=0; time<=duration; time+=dt) {
-                    t.push(time);
-                    let spd = 18 + 10*Math.sin(2*Math.PI*time/120);
-                    if(time>300 && time<450) spd += 8;
-                    v.push(Math.max(0, Math.min(100, spd + (Math.random()-0.5)*2)));
-                }
-                   }
-            return {t, v, dt};
-        }
-        
-        // 仿真核心 (增加电池温度)
-        function runHEVSimulation(params, cycleType) {
-            const csFactorNom = params.csFactor;
-            const minEngPowerKW = params.minEngPower;
-            const evSpdMax = params.evSpdMax;
-            const vehicleMass = params.mass;
-            const batteryCapAh = params.batteryCapAh;
-            const g = 9.81, rollCoeff = 0.01, cd = 0.3, area = 2.2, wheelRadius = 0.3, rhoAir = 1.225;
-            const batteryVoltage = 300, initSOC = 0.6, motorMaxTorque = 150, engineMaxTorque = 200, motorEff = 0.9;
-            const thermalResistance = 0.5; // °C/kW
-            const ambientTemp = 25;
-            
-            function fuelRateEngine(T_nm, omega_rad_s) {
-                if(T_nm <= 0) return 0;
-                return 0.28 * (T_nm/10) + 0.08 * omega_rad_s;
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.reset();
             }
-            
-            const {t, v, dt} = generateDriveCycle(cycleType, 0.5);
-            const N = t.length;
-            let SOC = new Array(N).fill(initSOC);
-            let engTorque = new Array(N).fill(0);
-            let motTorque = new Array(N).fill(0);
-            let mode = new Array(N).fill(0);
-            let cumFuel = new Array(N).fill(0);
-            let batteryTemp = new Array(N).fill(ambientTemp);
-            
-            function torqueDemandFromSpeed(v_kph) {
-                let v_ms = v_kph / 3.6;
-                let F_roll = vehicleMass * g * rollCoeff;
-                let F_aero = 0.5 * rhoAir * cd * area * v_ms * v_ms;
-                let T_wheel = (F_roll + F_aero) * wheelRadius;
-                return Math.min(350, Math.max(-80, T_wheel));
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 2.2 + 0.6;
+                this.speedX = (Math.random() - 0.5) * 0.25;
+                this.speedY = (Math.random() - 0.5) * 0.25;
+                this.opacity = Math.random() * 0.7 + 0.3;
+                this.twinkleSpeed = Math.random() * 0.02 + 0.008;
+                this.twinklePhase = Math.random() * Math.PI * 2;
+                this.isShooting = false;
+                this.shootTimer = 0;
             }
-            
-            for(let i=0; i<N-1; i++) {
-                let v_kph = v[i];
-                let T_demand = torqueDemandFromSpeed(v_kph);
-                let omega_wheel = (v_kph/3.6)/wheelRadius;
-                let socError = 0.6 - SOC[i];
-                let csDynamic = csFactorNom + 0.05*socError;
-                csDynamic = Math.min(0.8, Math.max(0.08, csDynamic));
-                let T_eng=0, T_mot=0, fuel_rate=0, I_batt=0, heatGen=0;
-                let modeCode = 1;
-                if(SOC[i] > 0.68 && v_kph < evSpdMax) {
-                    modeCode=1; T_eng=0; T_mot=T_demand;
-                    if(T_mot > motorMaxTorque) T_mot=motorMaxTorque;
-                    if(T_mot < -motorMaxTorque) T_mot=-motorMaxTorque;
-                    fuel_rate=0;
-                    let P_batt = (T_mot*omega_wheel)/motorEff;
-                    I_batt = P_batt/batteryVoltage;
-                    heatGen = Math.abs(P_batt)*0.05;
-                } else if(T_demand > (minEngPowerKW*1000/(omega_wheel+0.5)) && SOC[i]>0.28) {
-                    modeCode=2;
-                    let baseTorque = Math.min(engineMaxTorque, Math.max(10, T_demand-25));
-                    T_eng = Math.min(engineMaxTorque, baseTorque);
-                    T_mot = T_demand - T_eng;
-                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
-                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
-                    let P_batt = (T_mot*omega_wheel)/motorEff;
-                    I_batt = P_batt/batteryVoltage;
-                    heatGen = Math.abs(P_batt)*0.05 + T_eng*omega_wheel*0.01;
-                } else {
-                    modeCode=3;
-                    let extra = csDynamic*28;
-                    T_eng = Math.min(engineMaxTorque, Math.max(10, T_demand+extra));
-                    T_mot = T_demand - T_eng;
-                    T_mot = Math.min(motorMaxTorque, Math.max(-motorMaxTorque, T_mot));
-                    fuel_rate = fuelRateEngine(T_eng, omega_wheel);
-                    let P_batt = (T_mot*omega_wheel)/motorEff;
-                    I_batt = P_batt/batteryVoltage;
-                    heatGen = Math.abs(P_batt)*0.05;
+            update() {
+                // 闪烁
+                this.twinklePhase += this.twinkleSpeed;
+                const baseOpacity = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(this.twinklePhase));
+                this.currentOpacity = this.opacity * baseOpacity;
+
+                // 缓慢漂移
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // 边界回弹
+                if (this.x < 0 || this.x > width) this.speedX *= -1;
+                if (this.y < 0 || this.y > height) this.speedY *= -1;
+
+                // 随机变成流星
+                if (!this.isShooting && Math.random() < 0.0006) {
+                    this.isShooting = true;
+                    this.shootTimer = 0;
+                    this.shootX = this.x;
+                    this.shootY = this.y;
+                    this.shootAngle = Math.random() * Math.PI * 2;
+                    this.shootSpeed = 4 + Math.random() * 6;
+                    this.shootLife = 60 + Math.random() * 80;
                 }
-                let deltaSOC = -I_batt*dt/(batteryCapAh*3600);
-                let nextSOC = SOC[i] + deltaSOC;
-                nextSOC = Math.min(0.95, Math.max(0.2, nextSOC));
-                SOC[i+1] = nextSOC;
-                // 热模型: dT = heatGen * thermalResistance * dt
-                let tempChange = heatGen * thermalResistance * dt / 1000;
-                batteryTemp[i+1] = batteryTemp[i] + tempChange + 0.01*(ambientTemp - batteryTemp[i])*dt;
-                batteryTemp[i+1] = Math.min(65, Math.max(ambientTemp, batteryTemp[i+1]));
-                engTorque[i]=T_eng; motTorque[i]=T_mot; mode[i]=modeCode;
-                cumFuel[i+1] = cumFuel[i] + fuel_rate*dt;
-            }
-            mode[N-1]=mode[N-2]; batteryTemp[N-1]=batteryTemp[N-2];
-            const totalFuel_g = cumFuel[N-1];
-            const finalSOCval = SOC[N-1];
-            const maxTemp = Math.max(...batteryTemp);
-            let mpgeEstimate = (1000/(totalFuel_g+0.01))*28;
-            mpgeEstimate = Math.min(120, Math.max(10, mpgeEstimate));
-            return { time:t, speed:v, SOC, cumFuel_g:cumFuel, mode, batteryTemp,
-                     totalFuel_g, finalSOC:finalSOCval, maxTemp, mpge:mpgeEstimate };
-        }
-        
-        // 图表全局
-        let chartSpeed, chartSOC, chartFuel, chartMode, chartTemp;
-        let savedResult = null;
-        
-        function initCharts() {
-            chartSpeed = new Chart(document.getElementById('speedChart'), { type:'line', data:{labels:[], datasets:[{label:'车速 (km/h)', borderColor:'#2563eb', data:[]}]}, options:{responsive:true} });
-            chartSOC = new Chart(document.getElementById('socChart'), { type:'line', data:{labels:[], datasets:[{label:'SOC', borderColor:'#16a34a', data:[]}]}, options:{responsive:true} });
-            chartFuel = new Chart(document.getElementById('fuelChart'), { type:'line', data:{labels:[], datasets:[{label:'累计油耗 (g)', borderColor:'#dc2626', data:[]}]}, options:{responsive:true} });
-            chartMode = new Chart(document.getElementById('modeChart'), { type:'line', data:{labels:[], datasets:[{label:'模式 1EV 2HEV 3CS', borderColor:'#f97316', data:[]}]}, options:{responsive:true, scales:{y:{min:0.8,max:3.2,ticks:{stepSize:1}}}} });
-            chartTemp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'电池温度 (°C)', borderColor:'#ef4444', data:[]}]}, options:{responsive:true} });
-        }
-         function updateCharts(result, isComparison=false) {
-            const times = result.time.map(t=>t.toFixed(1));
-            chartSpeed.data.labels = times; chartSpeed.data.datasets[0].data = result.speed; chartSpeed.update();
-            chartSOC.data.labels = times; 
-            if(isComparison && savedResult) {
-                chartSOC.data.datasets = [
-                    {label:'当前 SOC', borderColor:'#16a34a', data:result.SOC},
-                    {label:'保存 SOC', borderColor:'#f59e0b', data:savedResult.SOC, borderDash:[5,5]}
-                ];
-            } else {
-                chartSOC.data.datasets = [{label:'电池 SOC', borderColor:'#16a34a', data:result.SOC}];
-            }
-            chartSOC.update();
-            chartFuel.data.labels = times; chartFuel.data.datasets[0].data = result.cumFuel_g; chartFuel.update();
-            chartMode.data.labels = times; chartMode.data.datasets[0].data = result.mode; chartMode.update();
-            chartTemp.data.labels = times; chartTemp.data.datasets[0].data = result.batteryTemp; chartTemp.update();
-            fuelTotalSpan.innerText = result.totalFuel_g.toFixed(1)+' g';
-            finalSOCSpan.innerText = (result.finalSOC*100).toFixed(1)+' %';
-            maxTempSpan.innerText = result.maxTemp.toFixed(1)+' °C';
-            mpgeSpan.innerText = result.mpge.toFixed(1);
-        }
-        
-        async function runSimulationAsync(params, cycleType) {
-            statusMsg.innerText = '⏳ 仿真计算中...';
-            await new Promise(r => setTimeout(r, 20));
-            const result = runHEVSimulation(params, cycleType);
-            updateCharts(result, false);
-            statusMsg.innerText = '✅ 仿真完成';
-            return result;
-        }
-        
-        async function optimize() {
-            statusMsg.innerText = '🔍 自动寻优中 (遗传算法迭代) ...';
-            let bestCost = Infinity;
-            let bestParams = { csFactor:0.25, minEngPower:25, evSpdMax:50 };
-            const cycle = cycleSelect.value;
-            for(let iter=0; iter<30; iter++) {
-                let cs = 0.1 + Math.random()*0.7;
-                let eng = 10 + Math.random()*50;
-                let ev = 25 + Math.random()*65;
-                let res = runHEVSimulation({ csFactor:cs, minEngPower:eng, evSpdMax:ev, mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) }, cycle);
-                let cost = res.totalFuel_g + Math.abs(res.finalSOC-0.6)*1000;
-                if(cost < bestCost) {
-                    bestCost = cost; bestParams = { csFactor:cs, minEngPower:eng, evSpdMax:ev };
+
+                if (this.isShooting) {
+                    this.shootTimer++;
+                    this.shootX += Math.cos(this.shootAngle) * this.shootSpeed;
+                    this.shootY += Math.sin(this.shootAngle) * this.shootSpeed;
+                    this.shootLife--;
+                    if (this.shootLife <= 0 || this.shootX < 0 || this.shootX > width || this.shootY < 0 || this.shootY >
+                        height) {
+                        this.isShooting = false;
+                        this.x = Math.random() * width;
+                        this.y = Math.random() * height;
+                    }
                 }
             }
-            csFactorSlider.value = bestParams.csFactor;
-            engMinPowerSlider.value = bestParams.minEngPower;
-            evSpdLimitSlider.value = bestParams.evSpdMax;
-            updateSliderDisplays();
-            await runSimulationAsync(bestParams, cycle);
-            statusMsg.innerText = `✅ 寻优完成！最优成本 ${bestCost.toFixed(1)}`;
-        }
-        
-        function exportCSV() {
-            statusMsg.innerText = '📎 导出CSV...';
-            setTimeout(()=>{
-                const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
-                const res = runHEVSimulation(params, cycleSelect.value);
-                let csvRows = [["time(s)","speed(km/h)","SOC","cumFuel(g)","mode","batteryTemp(C)"]];
-                for(let i=0; i<res.time.length; i+=5) {
-                    csvRows.push([res.time[i], res.speed[i], res.SOC[i], res.cumFuel_g[i], res.mode[i], res.batteryTemp[i]]);
+            draw() {
+                if (this.isShooting) {
+                    // 画流星
+                    const trailLen = 12;
+                    for (let i = 0; i < trailLen; i++) {
+                        const alpha = (1 - i / trailLen) * 0.9;
+                        const size = this.size * (1 - i / trailLen) * 1.8;
+                        ctx.beginPath();
+                        ctx.arc(
+                            this.shootX - Math.cos(this.shootAngle) * i * 3,
+                            this.shootY - Math.sin(this.shootAngle) * i * 3,
+                            size,
+                            0, Math.PI * 2
+                        );
+                        ctx.fillStyle = `rgba(255, 220, 255, ${alpha * 0.8})`;
+                        ctx.shadowColor = '#ffb3ff';
+                        ctx.shadowBlur = 20;
+                        ctx.fill();
+                    }
+                    // 流星头
+                    ctx.beginPath();
+                    ctx.arc(this.shootX, this.shootY, this.size * 2.2, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff9f0';
+                    ctx.shadowColor = '#ffb3ff';
+                    ctx.shadowBlur = 40;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    return;
                 }
-                const csvContent = csvRows.map(row=>row.join(",")).join("\n");
-                const blob = new Blob([csvContent], {type:"text/csv"});
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(blob);
-                a.download = `HEV_sim_${new Date().toISOString()}.csv`;
-                a.click();
-                statusMsg.innerText = '✅ CSV导出完成';
-            }, 20);
-        }
-           function saveCompare() {
-            const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
-            savedResult = runHEVSimulation(params, cycleSelect.value);
-            compareStatus.innerText = `已保存 (油耗 ${savedResult.totalFuel_g.toFixed(1)}g)`;
-            statusMsg.innerText = '💾 当前结果已保存，可点击“运行仿真”对比';
-        }
-        
-        async function mainRun() {
-            const params = { csFactor:parseFloat(csFactorSlider.value), minEngPower:parseFloat(engMinPowerSlider.value), evSpdMax:parseFloat(evSpdLimitSlider.value), mass:parseFloat(massSlider.value), batteryCapAh:parseFloat(battCapSlider.value) };
-            const res = await runSimulationAsync(params, cycleSelect.value);
-            if(savedResult) {
-                updateCharts(res, true);
-            } else {
-                updateCharts(res, false);
+
+                // 普通粒子
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                const hue = 300 + Math.sin(this.twinklePhase) * 20;
+                ctx.fillStyle = `hsla(${hue}, 90%, 75%, ${this.currentOpacity * 0.9})`;
+                ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.5)`;
+                ctx.shadowBlur = 12;
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
         }
-        
-        runBtn.onclick = mainRun;
-        optimizeBtn.onclick = optimize;
-        saveCompareBtn.onclick = saveCompare;
-        exportCSVBtn.onclick = exportCSV;
-        window.onload = () => { initCharts(); mainRun(); };
-    })();
-</script>
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            particles.push(new Particle());
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            // 额外画一些大星星闪烁
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // =========================================
+        // 2. 交互：按钮事件
+        // =========================================
+        const btnYes = document.getElementById('btnYes');
+        const btnHeart = document.getElementById('btnHeart');
+        const card = document.getElementById('card');
+
+        // 按钮1：表白成功 → 撒花 + 文字变化
+        btnYes.addEventListener('click', function() {
+            // 改变卡片内容
+            const messageDiv = document.querySelector('.message');
+            const nameDiv = document.querySelector('.name');
+            const greetingDiv = document.querySelector('.greeting');
+
+            nameDiv.textContent = '赖芸 ❤️';
+            greetingDiv.textContent = '💞 我 的 女 主 角 💞';
+
+            messageDiv.innerHTML = `
+                <span style="font-size:2rem; display:block; margin:4px 0;">🥰</span>
+                谢谢你愿意！<br />
+                我会用一辈子去 <span class="highlight">珍惜你</span>。<br />
+                赖芸，我爱你！<br />
+                <span style="font-size:2.4rem; display:block; margin-top:6px;">💗💗💗</span>
+            `;
+
+            // 隐藏按钮组，显示庆祝信息
+            document.querySelector('.btn-group').innerHTML = `
+                <div style="font-size:1.4rem; color:#ffb3ff; text-shadow:0 0 40px rgba(255,100,200,0.6);">
+                    ✧ 永 远 在 一 起 ✧
+                </div>
+            `;
+
+            // 触发全屏闪光特效 (通过CSS动画 + 临时类)
+            card.style.transition = 'box-shadow 0.6s';
+            card.style.boxShadow = '0 0 80px rgba(255,100,200,0.8), 0 0 160px rgba(255,50,150,0.5), 0 0 240px rgba(200,50,255,0.3)';
+
+            // 创建大量爱心飘落 (JS生成)
+            createFallingHearts(40);
+
+            // 播放轻微震动
+            card.style.animation = 'none';
+            card.offsetHeight;
+            card.style.animation = 'cardFloat 6s ease-in-out infinite';
+        });
+
+        // 按钮2：送一颗心 (动画 + 闪光)
+        btnHeart.addEventListener('click', function() {
+            // 在卡片周围生成一颗大爱心动画
+            const heart = document.createElement('div');
+            heart.textContent = '💖';
+            heart.style.cssText = `
+                position: fixed;
+                font-size: 8rem;
+                z-index: 100;
+                pointer-events: none;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) scale(0.2);
+                opacity: 0;
+                transition: none;
+                filter: drop-shadow(0 0 60px rgba(255,100,200,0.8));
+            `;
+            document.body.appendChild(heart);
+
+            // 触发动画
+            requestAnimationFrame(() => {
+                heart.style.transition = 'all 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                heart.style.transform = 'translate(-50%, -50%) scale(1.4)';
+                heart.style.opacity = '1';
+            });
+
+            setTimeout(() => {
+                heart.style.transition = 'all 0.8s ease-in';
+                heart.style.transform = 'translate(-50%, -50%) scale(2.0)';
+                heart.style.opacity = '0';
+                setTimeout(() => {
+                    heart.remove();
+                }, 900);
+            }, 1400);
+
+            // 同时闪光
+            const flash = document.createElement('div');
+            flash.style.cssText = `
+                position: fixed;
+                inset: 0;
+                z-index: 50;
+                pointer-events: none;
+                background: radial-gradient(circle, rgba(255,200,255,0.3), transparent 70%);
+                opacity: 0;
+                transition: opacity 0.3s;
+            `;
+            document.body.appendChild(flash);
+            requestAnimationFrame(() => {
+                flash.style.opacity = '1';
+            });
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 400);
+            }, 500);
+        });
+
+        // =========================================
+        // 3. 工具函数：撒花爱心
+        // =========================================
+        function createFallingHearts(count) {
+            const emojis = ['❤️', '💖', '💗', '💕', '💘', '💝', '✨'];
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('div');
+                el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                el.style.cssText = `
+                    position: fixed;
+                    z-index: 200;
+                    pointer-events: none;
+                    font-size: ${1.6 + Math.random() * 2.4}rem;
+                    left: ${Math.random() * 100}%;
+                    top: -10%;
+                    opacity: 0.9;
+                    filter: drop-shadow(0 0 20px rgba(255,80,200,0.5));
+                    transition: none;
+                    transform: rotate(${Math.random() * 60 - 30}deg);
+                `;
+                document.body.appendChild(el);
+
+                const duration = 3 + Math.random() * 4;
+                const xShift = (Math.random() - 0.5) * 300;
+                const startRot = Math.random() * 60 - 30;
+                const endRot = startRot + (Math.random() - 0.5) * 120;
+
+                requestAnimationFrame(() => {
+                    el.style.transition = `all ${duration}s cubic-bezier(0.2, 0.8, 0.3, 1)`;
+                    el.style.top = '110%';
+                    el.style.transform = `translateX(${xShift}px) rotate(${endRot}deg)`;
+                    el.style.opacity = '0.2';
+                });
+
+                setTimeout(() => {
+                    el.remove();
+                }, duration * 1000 + 200);
+            }
+        }
+
+        // =========================================
+        // 4. 额外：点击卡片任意处产生小闪光
+        // =========================================
+        card.addEventListener('click', function(e) {
+            // 只在点击卡片内部触发，但不包含按钮 (按钮已有点击事件)
+            if (e.target.closest('.btn')) return;
+
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const spark = document.createElement('div');
+            spark.style.cssText = `
+                position: absolute;
+                left: ${x}px;
+                top: ${y}px;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: radial-gradient(circle, #fff, #ffb3ff, transparent);
+                pointer-events: none;
+                z-index: 20;
+                box-shadow: 0 0 40px #ffb3ff, 0 0 80px #ff6fcf;
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+                transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            `;
+            card.appendChild(spark);
+
+            requestAnimationFrame(() => {
+                spark.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                spark.style.opacity = '0';
+            });
+
+            setTimeout(() => {
+                spark.remove();
+            }, 600);
+        });
+
+        // =========================================
+        // 5. 防止页面滚动 / 初始化
+        // =========================================
+        document.body.style.overflow = 'hidden';
+
+        console.log('💖 赖芸，你是我心中最美的风景 💖');
+    </script>
+
 </body>
 </html>
- 
